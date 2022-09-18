@@ -7,7 +7,7 @@
 #include <Preferences.h>
 #include <TaskScheduler.h>
 #include <Thread.h>
-#include "JITP/JITP.h"
+#include <AutoJITP.h>
 #include "Helpers/Web.h"
 
 void setup() {
@@ -24,13 +24,13 @@ void setup() {
   
   Serial.println("");
 
-  //jitp.DebugStream = &Serial;
-  // jitp.OnDeviceProvisioningStarted = [](){ Serial.println("TL: Online Started"); };
-  jitp.OnDeviceProvisioningFailed = [](ProvisionStatus status){ Serial.printf("TL: Failed: %d\n", status); };
-  jitp.OnProvisioned = [](MQTTClient& client){ Serial.printf("TL: Got MQTT Client: \n"); };
-  jitp.OnDeviceProvisioningProgress = [](int progress){ Serial.printf("TL: progress: %d%\n", progress); };
+  // autoJitp.DebugStream = &Serial;
+  // autoJitp.OnDeviceProvisioningStarted = [](){ Serial.println("TL: Online Started"); };
+  autoJitp.OnDeviceProvisioningFailed = [](ProvisionStatus status){ Serial.printf("TL: Failed: %d\n", status); };
+  autoJitp.OnProvisioned = [](MQTTClient& client){ Serial.printf("TL: Got MQTT Client: \n"); };
+  autoJitp.OnDeviceProvisioningProgress = [](int progress){ Serial.printf("TL: progress: %d%\n", progress); };
 
-  jitp.GetProvisionAsync();
+  autoJitp.GetProvisionAsync();
 
   Serial.println("Entering loop");
 }

@@ -2,11 +2,9 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>       //MQTT
 #include <MQTTClient.h>             //MQTT
-#include "Common/Logs.h"
 #include <ArduinoJson.h>            //JSON
 #include <Preferences.h>            //Prefs
 #include <Thread.h>
-#include "Helpers/general.h"
 #include <LittleFS.h>
 
 enum ProvisionStatus:byte{
@@ -18,6 +16,35 @@ enum ProvisionStatus:byte{
     TimedOut,
     Failed
 };
+
+
+//Get Chip ID
+String getChipNumber() {
+    uint32_t chipId = 0;
+    for(int i=0; i< 17; i = i+8) {
+        chipId ^= ((ESP.getEfuseMac() >> (40 - i)) & 0xff0) << i;
+    }
+    String s = String(chipId);
+    while (s.length() > 16) {
+        s = s.substring(1);
+    }
+    while (s.length() < 4)
+    {
+        s = String("0") + s;
+    }
+
+    return s;
+}
+String getChipNumberShort() {
+    String s = getChipNumber();
+    return s.substring(s.length() - 4, s.length());
+}
+
+//Get Mac Address
+String getMacAddress() {
+    return WiFi.macAddress();
+}
+
 
 //Inits
 // Preferences
@@ -160,7 +187,7 @@ void getProvisionThread()
             // tast_awsConnectForActivation.disable();
 
             //THROW ERROR
-            log_error(1, "AWS Connectivity: Timeout");
+            //log_error(1, "AWS Connectivity: Timeout");
             status = ProvisionStatus::ConnectionError;
             if (jitp.OnDeviceProvisioningFailed)
                 jitp.OnDeviceProvisioningFailed(ProvisionStatus::ConnectionError);
@@ -228,7 +255,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
         if (error) {
             if (jitp.DebugStream) jitp.DebugStream->print(F("deserializeJson() failed: "));
             if (jitp.DebugStream) jitp.DebugStream->println(error.f_str());
-            log_error(3, "AWS Device Activation: Deserialisation Failed");
+            //log_error(3, "AWS Device Activation: Deserialisation Failed");
             status = ProvisionStatus::Failed;
             if (jitp.OnDeviceProvisioningFailed)
                 jitp.OnDeviceProvisioningFailed(ProvisionStatus::Failed);
@@ -312,7 +339,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
         if (!device_status) {
             if (jitp.DebugStream) jitp.DebugStream->println("Device Registeration failed");
             //THROW ERROR
-            log_error(3, "AWS Device Activation: Deserialisation Failed");
+            //log_error(3, "AWS Device Activation: Deserialisation Failed");
             status = ProvisionStatus::Failed;
             if (jitp.OnDeviceProvisioningFailed)
                 jitp.OnDeviceProvisioningFailed(ProvisionStatus::Failed);
@@ -355,7 +382,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
         //gen_Error("0x1001");
         //THROW ERROR
         if (jitp.DebugStream) jitp.DebugStream->println("Certificate Rejected");
-        log_error(6, "Certificate Rejected");
+        //log_error(6, "Certificate Rejected");
         status = ProvisionStatus::Denied;
         if (jitp.OnDeviceProvisioningFailed)
             jitp.OnDeviceProvisioningFailed(ProvisionStatus::Denied);
@@ -368,7 +395,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
         //gen_Error("0x1002");
         //THROW ERROR
         if (jitp.DebugStream) jitp.DebugStream->println("Privisioning Device Rejected");
-        log_error(6, "Privisioning Device Rejected");
+        //log_error(6, "Privisioning Device Rejected");
         status = ProvisionStatus::Denied;
         if (jitp.OnDeviceProvisioningFailed)
             jitp.OnDeviceProvisioningFailed(ProvisionStatus::Denied);

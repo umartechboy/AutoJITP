@@ -9,7 +9,6 @@
 #include <Thread.h>
 #include "JITP/JITP.h"
 #include "Helpers/Web.h"
-#include "creds.h"
 
 void setup() {
   Serial.begin(115200);
@@ -25,11 +24,8 @@ void setup() {
   
   Serial.println("");
 
-  // jitp.DebugStream = &Serial;
+  //jitp.DebugStream = &Serial;
   // jitp.OnDeviceProvisioningStarted = [](){ Serial.println("TL: Online Started"); };
-  jitp.awsRootCA = AWS_ROOT_CA;
-  jitp.awsInitCert = AWS_INIT_CERT;
-  jitp.awsInitKey = AWS_INIT_KEY;
   jitp.OnDeviceProvisioningFailed = [](ProvisionStatus status){ Serial.printf("TL: Failed: %d\n", status); };
   jitp.OnProvisioned = [](MQTTClient& client){ Serial.printf("TL: Got MQTT Client: \n"); };
   jitp.OnDeviceProvisioningProgress = [](int progress){ Serial.printf("TL: progress: %d%\n", progress); };
@@ -40,4 +36,4 @@ void setup() {
 }
 
 void loop() {
-} 
+}

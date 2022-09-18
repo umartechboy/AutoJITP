@@ -92,7 +92,6 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
 
 
     isActivated = pref.getBool("activated", false);
-    isActivated = false;
     if (forceNewCerts) {
         isActivated = false;
         DebugStream->println("Forcing new certs");

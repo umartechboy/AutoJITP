@@ -169,13 +169,15 @@ void getProvisionThread()
 
     const char* cid = deviceCHIPID.c_str();
 
-    for (int aws_retries =0; aws_retries < AWS_MAX_RECONNECT_TRIES; aws_retries++){
+    bool connected = false;
+    for (int aws_retries = 0; aws_retries < AWS_MAX_RECONNECT_TRIES; aws_retries++){
 
         if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(5 + aws_retries);
         //Attempt Connection
         if (!client.connect(cid) && aws_retries < AWS_MAX_RECONNECT_TRIES) {
             if (autoJitp.DebugStream) autoJitp.DebugStream->println("Attempting AWS Connection");
-            aws_retries++;
+            
+            delay(1000);
             continue;
         }
 
@@ -194,9 +196,16 @@ void getProvisionThread()
             return;
         }
         else
+        connected = true;
         break;
     }
 
+    if (!connected) {
+        status = ProvisionStatus::ConnectionError;
+        if (autoJitp.OnDeviceProvisioningFailed)
+            autoJitp.OnDeviceProvisioningFailed(ProvisionStatus::ConnectionError);
+        return;
+    }
     if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(50);
     if (autoJitp.DebugStream) autoJitp.DebugStream->println("Connected to AWS!: Activation Mode");
 

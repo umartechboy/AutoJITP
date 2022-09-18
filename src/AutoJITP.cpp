@@ -1,4 +1,4 @@
-#include "JITP.h"
+#include "AutoJITP.h"
 #include <Arduino.h>
 #include <WiFiClientSecure.h>       //MQTT
 #include <MQTTClient.h>             //MQTT
@@ -62,18 +62,18 @@ bool isActivated;
 //Device Activation - Messages Recevied
 void aws_device_actvation_messages(String &topic, String &payload);
 
-JITP::JITP(){
+AutoJITP::AutoJITP(){
 
     status = ProvisionStatus::NotStarted;
 }
-JITP::~JITP(){
+AutoJITP::~AutoJITP(){
     delete config;
 }
-MQTTClient& JITP::GetClient(){
+MQTTClient& AutoJITP::GetClient(){
     return client;
 }
 void getProvisionThread();
-ProvisionStatus JITP::GetProvisionAsync(bool forceNewCerts)
+ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
 {
     this->config = new JITPConfig();
     if (OnDeviceProvisioningProgress) OnDeviceProvisioningProgress(1);
@@ -131,8 +131,8 @@ ProvisionStatus JITP::GetProvisionAsync(bool forceNewCerts)
         pref.end();
         status = ProvisionStatus::Granted;
         if (OnDeviceProvisioningProgress) OnDeviceProvisioningProgress(100);
-        if (jitp.OnProvisioned)
-            jitp.OnProvisioned(client);
+        if (autoJitp.OnProvisioned)
+            autoJitp.OnProvisioned(client);
         return ProvisionStatus::Granted;
     }
 
@@ -158,47 +158,47 @@ ProvisionStatus JITP::GetProvisionAsync(bool forceNewCerts)
 /// @brief this is the main get provision task. Called only if the device is not already provisioned
 void getProvisionThread()
 {
-    if (jitp.DebugStream) jitp.DebugStream->println("In Thread.");
-    if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(5);
+    if (autoJitp.DebugStream) autoJitp.DebugStream->println("In Thread.");
+    if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(5);
     //Device Name
-    if (jitp.OnDeviceProvisioningStarted)
-        jitp.OnDeviceProvisioningStarted();
+    if (autoJitp.OnDeviceProvisioningStarted)
+        autoJitp.OnDeviceProvisioningStarted();
     String deviceCHIPID = getChipNumber();
 
-    if (jitp.DebugStream) jitp.DebugStream->println("Attempt Connection");
+    if (autoJitp.DebugStream) autoJitp.DebugStream->println("Attempt Connection");
 
     const char* cid = deviceCHIPID.c_str();
 
     for (int aws_retries =0; aws_retries < AWS_MAX_RECONNECT_TRIES; aws_retries++){
 
-        if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(5 + aws_retries);
+        if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(5 + aws_retries);
         //Attempt Connection
         if (!client.connect(cid) && aws_retries < AWS_MAX_RECONNECT_TRIES) {
-            if (jitp.DebugStream) jitp.DebugStream->println("Attempting AWS Connection");
+            if (autoJitp.DebugStream) autoJitp.DebugStream->println("Attempting AWS Connection");
             aws_retries++;
             continue;
         }
 
-        if (jitp.DebugStream) jitp.DebugStream->println("Attempt Connection done");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Attempt Connection done");
         //Timedout
         if(!client.connected()){
-            if (jitp.DebugStream) jitp.DebugStream->println(" Timeout!");
+            if (autoJitp.DebugStream) autoJitp.DebugStream->println(" Timeout!");
             // Work around ????
             // tast_awsConnectForActivation.disable();
 
             //THROW ERROR
             //log_error(1, "AWS Connectivity: Timeout");
             status = ProvisionStatus::ConnectionError;
-            if (jitp.OnDeviceProvisioningFailed)
-                jitp.OnDeviceProvisioningFailed(ProvisionStatus::ConnectionError);
+            if (autoJitp.OnDeviceProvisioningFailed)
+                autoJitp.OnDeviceProvisioningFailed(ProvisionStatus::ConnectionError);
             return;
         }
         else
         break;
     }
 
-    if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(50);
-    if (jitp.DebugStream) jitp.DebugStream->println("Connected to AWS!: Activation Mode");
+    if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(50);
+    if (autoJitp.DebugStream) autoJitp.DebugStream->println("Connected to AWS!: Activation Mode");
 
     //Receive Messages
     client.onMessage(&aws_device_actvation_messages);
@@ -209,43 +209,43 @@ void getProvisionThread()
     client.subscribe(AWS_CERT_REQUEST_ACCEPT);
 
     //Step 2 - Token Verification
-    client.subscribe((String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json/rejected").c_str());
-    client.subscribe((String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json/accepted").c_str());
+    client.subscribe((String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json/rejected").c_str());
+    client.subscribe((String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json/accepted").c_str());
 
     //Ping Topic for Token
     StaticJsonDocument<16> doc;
 
-    if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(62);
+    if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(62);
     doc["test_data"] = 1;
     String json_string;
     serializeJson(doc, json_string);
-    if (jitp.DebugStream) jitp.DebugStream->printf("Cert request: %s\n", json_string.c_str());
+    if (autoJitp.DebugStream) autoJitp.DebugStream->printf("Cert request: %s\n", json_string.c_str());
     //Publish to Request for New Certificate
     client.publish(AWS_CERT_REQUEST_CREATE, json_string);
     long st = 0;
-    while (millis() - st < AWS_Provisioning_Timeout && jitp.GetStatus() == ProvisionStatus::InProcess)
+    while (millis() - st < AWS_Provisioning_Timeout && autoJitp.GetStatus() == ProvisionStatus::InProcess)
     {
         client.loop();
         delay(1);
     }
-    if (jitp.GetStatus() == ProvisionStatus::InProcess) {
+    if (autoJitp.GetStatus() == ProvisionStatus::InProcess) {
         status = ProvisionStatus::TimedOut;
-        if (jitp.DebugStream) jitp.DebugStream->println("MQTT client timed out");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("MQTT client timed out");
     }
-    if (jitp.DebugStream) jitp.DebugStream->printf("Provisioned in: %d", millis() - st);
+    if (autoJitp.DebugStream) autoJitp.DebugStream->printf("Provisioned in: %d", millis() - st);
 
     return;
 }
 
-ProvisionStatus JITP::GetStatus(){
+ProvisionStatus AutoJITP::GetStatus(){
     return status;
 }
 void aws_device_actvation_messages(String &topic, String &payload)
 {
-    if (jitp.DebugStream) jitp.DebugStream->printf("aws_device_actvation_messages: %s\n" , topic.c_str());
+    if (autoJitp.DebugStream) autoJitp.DebugStream->printf("aws_device_actvation_messages: %s\n" , topic.c_str());
     //Registeration Token - Step 1
     if (topic.equals(AWS_CERT_REQUEST_ACCEPT)) {
-        if (jitp.DebugStream) jitp.DebugStream->println("Step 1: Registeration Token");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Step 1: Registeration Token");
 
         //Parse Payload - Deserialize
         DynamicJsonDocument doc(payload.length());
@@ -253,12 +253,12 @@ void aws_device_actvation_messages(String &topic, String &payload)
 
         //Handle Error
         if (error) {
-            if (jitp.DebugStream) jitp.DebugStream->print(F("deserializeJson() failed: "));
-            if (jitp.DebugStream) jitp.DebugStream->println(error.f_str());
+            if (autoJitp.DebugStream) autoJitp.DebugStream->print(F("deserializeJson() failed: "));
+            if (autoJitp.DebugStream) autoJitp.DebugStream->println(error.f_str());
             //log_error(3, "AWS Device Activation: Deserialisation Failed");
             status = ProvisionStatus::Failed;
-            if (jitp.OnDeviceProvisioningFailed)
-                jitp.OnDeviceProvisioningFailed(ProvisionStatus::Failed);
+            if (autoJitp.OnDeviceProvisioningFailed)
+                autoJitp.OnDeviceProvisioningFailed(ProvisionStatus::Failed);
             return;
         }
 
@@ -278,7 +278,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
         File f = LittleFS.open("/device_key.sys","w");
         f.print(privateKey);
         f.close();
-        if (jitp.DebugStream) jitp.DebugStream->printf("f1 size: %d\n", f.size());
+        if (autoJitp.DebugStream) autoJitp.DebugStream->printf("f1 size: %d\n", f.size());
 
 
         // File f2 = LittleFS.open("/device_key.sys","r");
@@ -289,11 +289,11 @@ void aws_device_actvation_messages(String &topic, String &payload)
         // f2.close();
         // String readBack = String(buffer);
 
-        if (jitp.DebugStream) jitp.DebugStream->printf("certificatePem: %s\n",certificatePem);
-        if (jitp.DebugStream) jitp.DebugStream->printf("privateKey: %s\n", privateKey);
-        //if (jitp.DebugStream) jitp.DebugStream->printf("ReadBack: %s\n", readBack.c_str());
+        if (autoJitp.DebugStream) autoJitp.DebugStream->printf("certificatePem: %s\n",certificatePem);
+        if (autoJitp.DebugStream) autoJitp.DebugStream->printf("privateKey: %s\n", privateKey);
+        //if (autoJitp.DebugStream) autoJitp.DebugStream->printf("ReadBack: %s\n", readBack.c_str());
 
-        if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(74);
+        if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(74);
 
         aws_cert = certificatePem;
         aws_key = privateKey;
@@ -312,17 +312,17 @@ void aws_device_actvation_messages(String &topic, String &payload)
         String json_string;
         serializeJson(doc_token, json_string);
 
-        if (jitp.DebugStream) jitp.DebugStream->println(json_string);
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println(json_string);
 
         //Republish
-        client.publish((String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json").c_str(), json_string);
+        client.publish((String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json").c_str(), json_string);
     }
 
     //Device Registeration Confirmed - Step 2
-    else if (topic.equals(String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json/accepted")) {
+    else if (topic.equals(String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json/accepted")) {
 
-        if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(86);
-        if (jitp.DebugStream) jitp.DebugStream->println("Step 2: Device Registeration Confirmed");
+        if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(86);
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Step 2: Device Registeration Confirmed");
 
         //Deserialize
         DynamicJsonDocument doc(200);
@@ -331,18 +331,18 @@ void aws_device_actvation_messages(String &topic, String &payload)
         bool device_status = doc["deviceConfiguration"]["success"]; // true
         const char* thingName = doc["thingName"]; // "BRAP_MY_NAME_11"
 
-        if (jitp.DebugStream) jitp.DebugStream->println("Thing Name");
-        if (jitp.DebugStream) jitp.DebugStream->println(thingName);
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Thing Name");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println(thingName);
         device_name = thingName;
 
         //Handle Error
         if (!device_status) {
-            if (jitp.DebugStream) jitp.DebugStream->println("Device Registeration failed");
+            if (autoJitp.DebugStream) autoJitp.DebugStream->println("Device Registeration failed");
             //THROW ERROR
             //log_error(3, "AWS Device Activation: Deserialisation Failed");
             status = ProvisionStatus::Failed;
-            if (jitp.OnDeviceProvisioningFailed)
-                jitp.OnDeviceProvisioningFailed(ProvisionStatus::Failed);
+            if (autoJitp.OnDeviceProvisioningFailed)
+                autoJitp.OnDeviceProvisioningFailed(ProvisionStatus::Failed);
             return;
         }
 
@@ -361,17 +361,17 @@ void aws_device_actvation_messages(String &topic, String &payload)
         client.unsubscribe(AWS_CERT_REQUEST_ACCEPT);
 
         //Step 2
-        client.unsubscribe((String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json/rejected").c_str());
-        client.unsubscribe((String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json/accepted").c_str());
+        client.unsubscribe((String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json/rejected").c_str());
+        client.unsubscribe((String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json/accepted").c_str());
 
         //Device Activated
-        if (jitp.DebugStream) jitp.DebugStream->println("Device Activated");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Device Activated");
 
         isActivated = true;
 
-        if (jitp.OnDeviceProvisioningProgress) jitp.OnDeviceProvisioningProgress(100);
-        if (jitp.OnProvisioned)
-            jitp.OnProvisioned(client);
+        if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(100);
+        if (autoJitp.OnProvisioned)
+            autoJitp.OnProvisioned(client);
 
         status = ProvisionStatus::Granted;
     }
@@ -381,25 +381,25 @@ void aws_device_actvation_messages(String &topic, String &payload)
         //Request Rejected
         //gen_Error("0x1001");
         //THROW ERROR
-        if (jitp.DebugStream) jitp.DebugStream->println("Certificate Rejected");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Certificate Rejected");
         //log_error(6, "Certificate Rejected");
         status = ProvisionStatus::Denied;
-        if (jitp.OnDeviceProvisioningFailed)
-            jitp.OnDeviceProvisioningFailed(ProvisionStatus::Denied);
+        if (autoJitp.OnDeviceProvisioningFailed)
+            autoJitp.OnDeviceProvisioningFailed(ProvisionStatus::Denied);
         return;
     }
 
     //Error
-    else if (topic.equals(String("$aws/provisioning-templates/") + jitp.config->GetAWSProvisioningTemplateName() + "/provision/json/rejected")) {
+    else if (topic.equals(String("$aws/provisioning-templates/") + autoJitp.config->GetAWSProvisioningTemplateName() + "/provision/json/rejected")) {
         //Request Rejected
         //gen_Error("0x1002");
         //THROW ERROR
-        if (jitp.DebugStream) jitp.DebugStream->println("Privisioning Device Rejected");
+        if (autoJitp.DebugStream) autoJitp.DebugStream->println("Privisioning Device Rejected");
         //log_error(6, "Privisioning Device Rejected");
         status = ProvisionStatus::Denied;
-        if (jitp.OnDeviceProvisioningFailed)
-            jitp.OnDeviceProvisioningFailed(ProvisionStatus::Denied);
+        if (autoJitp.OnDeviceProvisioningFailed)
+            autoJitp.OnDeviceProvisioningFailed(ProvisionStatus::Denied);
         return;
     }
 }
-JITP jitp;
+AutoJITP autoJitp;

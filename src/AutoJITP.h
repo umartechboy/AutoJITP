@@ -44,7 +44,7 @@ public:
     /// @return Provision Status
     ProvisionStatus GetStatus();
     /// @brief Called when an existing or newly acquired provisioning is acquired.
-    void (*OnProvisioned)(MQTTClient &client) = 0;
+    void (*OnProvisioned)(MQTTClient &client, String& deviceName) = 0;
     /// @brief During the aync routine of SetupProvision, this event is called when Online provisioning begins
     void (*OnDeviceProvisioningStarted)() = 0;
     /// @brief During the aync routine of SetupProvision, this event is called before retrying to get provision

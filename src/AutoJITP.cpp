@@ -132,7 +132,7 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
         status = ProvisionStatus::Granted;
         if (OnDeviceProvisioningProgress) OnDeviceProvisioningProgress(100);
         if (autoJitp.OnProvisioned)
-            autoJitp.OnProvisioned(client);
+            autoJitp.OnProvisioned(client, device_name);
         return ProvisionStatus::Granted;
     }
 
@@ -380,7 +380,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
 
         if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(100);
         if (autoJitp.OnProvisioned)
-            autoJitp.OnProvisioned(client);
+            autoJitp.OnProvisioned(client, device_name);
 
         status = ProvisionStatus::Granted;
     }

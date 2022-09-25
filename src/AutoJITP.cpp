@@ -59,6 +59,12 @@ AutoJITP::~AutoJITP(){
 MQTTClient& AutoJITP::GetClient(){
     return client;
 }
+void connectedClientLoopThread(){
+    while(true) {
+        client.loop();
+        delay(100);
+    }
+}
 void getProvisionThread();
 ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
 {
@@ -85,7 +91,7 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
         if (DebugStream) {
             DebugStream->printf("aws_cert: %s\n\n", aws_cert.c_str());
             DebugStream->printf("aws_key: %s\n\n", aws_key.c_str());
-            DebugStream->printf("device_name: %s\n\n", device_name.c_str());
+            DebugStream->printf("device_name: [%s]\n\n", device_name.c_str());
         }
 
 
@@ -98,9 +104,28 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
         if (DebugStream) DebugStream->printf("Already granted\n");
         pref.end();
         status = ProvisionStatus::Granted;
+
         if (OnDeviceProvisioningProgress) OnDeviceProvisioningProgress(100);
+        Thread(connectedClientLoopThread).Start();
+        //Attempt Connecting
+        int aws_retries = 0;
+        while (!client.connect(device_name.c_str()) && aws_retries < 20) {
+            Serial.print(".");
+            delay(200);
+            aws_retries++;
+        }    
+        
+        if(client.connect(device_name.c_str())) {
+            if(autoJitp.DebugStream)
+                autoJitp.DebugStream->printf("Connected to IoT Core @ %s\n", device_name.c_str());
+        }
+        else {
+            if(autoJitp.DebugStream)
+                autoJitp.DebugStream->printf("Could not connect to IoT Core @ %s due to: %d\n", device_name.c_str(), client.lastError());
+        }
         if (autoJitp.OnProvisioned)
             autoJitp.OnProvisioned(client, device_name);
+            
         return ProvisionStatus::Granted;
     }
 
@@ -336,10 +361,20 @@ void aws_device_actvation_messages(String &topic, String &payload)
         isActivated = true;
 
         if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(100);
+        client.disconnect(); // connect to device topic.
+        if(client.connect(device_name.c_str())) {
+            if(autoJitp.DebugStream)
+                autoJitp.DebugStream->printf("Connected to IoT Core @ %s\n", device_name.c_str());
+        }
+        else {
+            if(autoJitp.DebugStream)
+                autoJitp.DebugStream->printf("Could not connect to IoT Core @ %s due to: %d\n", device_name.c_str(), client.lastError());
+        }
         if (autoJitp.OnProvisioned)
             autoJitp.OnProvisioned(client, device_name);
 
         status = ProvisionStatus::Granted;
+        Thread(connectedClientLoopThread).Start();
     }
 
     //Error

@@ -264,8 +264,6 @@ void aws_device_actvation_messages(String &topic, String &payload)
         pref.putString("device_key", privateKey);
         pref.end();
 
-        if (autoJitp.DebugStream) autoJitp.DebugStream->printf("f1 size: %d\n", f.size());
-
         if (autoJitp.DebugStream) autoJitp.DebugStream->printf("certificatePem: %s\n",certificatePem);
         if (autoJitp.DebugStream) autoJitp.DebugStream->printf("privateKey: %s\n", privateKey);
         //if (autoJitp.DebugStream) autoJitp.DebugStream->printf("ReadBack: %s\n", readBack.c_str());
@@ -288,7 +286,6 @@ void aws_device_actvation_messages(String &topic, String &payload)
         parameters["SerialNumber"]  = getChipNumber();
         parameters["mac_addr"]      = getMacAddress();
         parameters["chip_id"]       = getChipNumber();
-        parameters["token"]         = token;
         String json_string;
         serializeJson(doc_token, json_string);
 

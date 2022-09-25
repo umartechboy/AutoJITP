@@ -6,17 +6,6 @@
 #include <Preferences.h>            //Prefs
 #include <Thread.h>
 
-enum ProvisionStatus:byte{
-    Granted,
-    Denied,
-    ConnectionError,
-    InProcess,
-    NotStarted,
-    TimedOut,
-    Failed
-};
-
-
 //Get Chip ID
 String getChipNumber() {
     uint32_t chipId = 0;

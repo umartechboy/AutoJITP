@@ -6,7 +6,15 @@
 #include <Preferences.h>            //Prefs
 
 void getProvisionCStyle();
-enum ProvisionStatus:byte;
+enum ProvisionStatus:byte{
+    Granted,
+    Denied,
+    ConnectionError,
+    InProcess,
+    NotStarted,
+    TimedOut,
+    Failed
+};
 #define AWS_MAX_RECONNECT_TRIES 10
 #define AWS_Provisioning_Timeout 30000
 //Device Setup Topics - Subscribe

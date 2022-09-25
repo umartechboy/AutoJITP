@@ -5,7 +5,6 @@
 #include <ArduinoJson.h>            //JSON
 #include <Preferences.h>            //Prefs
 #include <Thread.h>
-#include <LittleFS.h>
 
 enum ProvisionStatus:byte{
     Granted,
@@ -53,7 +52,6 @@ ProvisionStatus status;
 Preferences pref;
 WiFiClientSecure net;
 MQTTClient client (4096);
-String token;
 String aws_cert;
 String aws_key;
 String device_name;
@@ -79,17 +77,7 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
     if (OnDeviceProvisioningProgress) OnDeviceProvisioningProgress(1);
     if (DebugStream) DebugStream->println("SetupProvision()");
     status = ProvisionStatus::InProcess;
-    pref.begin("prov.sys", false);
-    token = pref.getString("user_token", "");
-
-    //Generate Random Token, if it Does Not Exists
-    if (token.length() == 0) {
-        if (DebugStream) DebugStream->println("No User Token Found");
-        int randNumber = random(999999);
-        token = String(randNumber);
-        pref.putString("user_token", token);
-    }
-
+    pref.begin("prov", false);
 
     isActivated = pref.getBool("activated", false);
     if (forceNewCerts) {
@@ -102,17 +90,8 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
     // #warning forcing activation in session
     if (isActivated) {
         aws_cert = pref.getString("device_cert", "");
-        //aws_key = pref.getString("device_key", "");
+        aws_key = pref.getString("device_key", "");
         device_name = pref.getString("device_name", "");
-
-        // prefs too small for this
-        File f = LittleFS.open("/device_key.sys","r");
-        char* buffer = new char [f.size() + 1];
-        f.readBytes(buffer, f.size());
-        buffer[f.size()] = 0;
-        f.close();
-        aws_key = String(buffer);
-        delete buffer;
 
         if (DebugStream) {
             DebugStream->printf("aws_cert: %s\n\n", aws_cert.c_str());
@@ -151,7 +130,7 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
 
     if (DebugStream) DebugStream->println("Root CA set. Starting the provisioning thread");
     // Begin async process
-    pref.begin("prov.sys", false);
+    pref.begin("prov", false);
     Thread(getProvisionThread).Start();
     return status;
 }
@@ -280,23 +259,12 @@ void aws_device_actvation_messages(String &topic, String &payload)
         const char* certificateOwnershipToken = doc["certificateOwnershipToken"];
 
         //Save Certs
-        pref.begin("prov.sys", false);
+        pref.begin("prov", false);
         pref.putString("device_cert", certificatePem);
+        pref.putString("device_key", privateKey);
         pref.end();
-        // prefs too small for this
-        File f = LittleFS.open("/device_key.sys","w");
-        f.print(privateKey);
-        f.close();
+
         if (autoJitp.DebugStream) autoJitp.DebugStream->printf("f1 size: %d\n", f.size());
-
-
-        // File f2 = LittleFS.open("/device_key.sys","r");
-        // Serial.printf("f2 size: %d\n", f2.size());
-        // char* buffer = new char [f2.size() + 1];
-        // f2.readBytes(buffer, f2.size());
-        // buffer[f2.size()] = 0;
-        // f2.close();
-        // String readBack = String(buffer);
 
         if (autoJitp.DebugStream) autoJitp.DebugStream->printf("certificatePem: %s\n",certificatePem);
         if (autoJitp.DebugStream) autoJitp.DebugStream->printf("privateKey: %s\n", privateKey);
@@ -314,6 +282,9 @@ void aws_device_actvation_messages(String &topic, String &payload)
         doc_token["certificateOwnershipToken"]  = certificateOwnershipToken;
 
         JsonObject parameters       = doc_token.createNestedObject("parameters");
+        if (autoJitp.OnRequestToGetProvisioningPayload){
+            autoJitp.OnRequestToGetProvisioningPayload(parameters);
+        }
         parameters["SerialNumber"]  = getChipNumber();
         parameters["mac_addr"]      = getMacAddress();
         parameters["chip_id"]       = getChipNumber();
@@ -356,7 +327,7 @@ void aws_device_actvation_messages(String &topic, String &payload)
         }
 
         //Device Ready - Store Settings
-        pref.begin("prov.sys", false);
+        pref.begin("prov", false);
         pref.putBool("activated", true);
         pref.putString("device_name", thingName);
         pref.end();

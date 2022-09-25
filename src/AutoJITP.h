@@ -53,6 +53,8 @@ public:
     void (*OnDeviceProvisioningFailed)(ProvisionStatus cause) = 0;
     /// @brief Called when some progress is made during provisioning scale [0-100]
     void (*OnDeviceProvisioningProgress)(int progress) = 0;
+    /// @brief Additional payload that the provisioning lambda might need
+    void (*OnRequestToGetProvisioningPayload)(JsonObject& payload) = 0;
     MQTTClient& GetClient();
     Stream* DebugStream = 0;
     JITPConfig* config;

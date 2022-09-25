@@ -109,7 +109,7 @@ ProvisionStatus AutoJITP::GetProvisionAsync(bool forceNewCerts)
         Thread(connectedClientLoopThread).Start();
         //Attempt Connecting
         int aws_retries = 0;
-        while (!client.connect(device_name.c_str()) && aws_retries < 20) {
+        while (!client.connect(device_name.c_str()) && aws_retries < 5) {
             Serial.print(".");
             delay(200);
             aws_retries++;
@@ -362,6 +362,20 @@ void aws_device_actvation_messages(String &topic, String &payload)
 
         if (autoJitp.OnDeviceProvisioningProgress) autoJitp.OnDeviceProvisioningProgress(100);
         client.disconnect(); // connect to device topic.
+
+        net.setCertificate(aws_cert.c_str());
+        net.setPrivateKey(aws_key.c_str());
+        
+        client.begin(autoJitp.config->GetAWSEndPoint(), 8883, net);
+        //Attempt Connecting
+        int aws_retries = 0;
+        while (!client.connect(device_name.c_str()) && aws_retries < 5) {
+            if(autoJitp.DebugStream)
+                autoJitp.DebugStream->printf(".");
+            delay(200);
+            aws_retries++;
+        }    
+
         if(client.connect(device_name.c_str())) {
             if(autoJitp.DebugStream)
                 autoJitp.DebugStream->printf("Connected to IoT Core @ %s\n", device_name.c_str());

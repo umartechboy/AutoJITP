@@ -47,7 +47,7 @@ public:
     ~AutoJITP();
     /// @brief Gets IoT core provision from AWS, sets up Thing name.
     /// @return ProvisionStatus::Granted if already provisioned or ProvisionStatus::InProcess and begins async provision process in parallel.
-    ProvisionStatus GetProvisionAsync(bool forceNewCerts = false);
+    ProvisionStatus GetProvisionAsync(bool forceNewCerts = false, bool dontRunClientLoop = false);
     /// @brief Gets the provisioning status at any time.
     /// @return Provision Status
     ProvisionStatus GetStatus();
